@@ -1,4 +1,4 @@
-name: 'Helm Publish'
+name: 'Helm3 Publish'
 description: 'Build and deploy your Helm charts to GitHub Pages.'
 branding:
   icon: 'archive'
