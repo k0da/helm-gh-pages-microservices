@@ -7,6 +7,10 @@ inputs:
   access-token:
     description: 'A personal access token needed to push your site after it has been built.'
     required: true
+  source-charts-folder:
+    description: 'The folder to package helm charts from'
+    required: false
+    default: 'charts'
   destination-repo:
     description: 'The destination repository you want to push your Helm chart to.'
     required: true
@@ -14,10 +18,14 @@ inputs:
     description: 'The destination branch you want to push your Helm chart to.'
     required: false
     default: 'master'
-  charts-folder:
-    description: 'The folder in which the helm charts are located'
+  destination-charts-folder:
+    description: 'The folder to copy packaged helm charts into'
     required: false
     default: 'charts'
+  helm-version:
+    description: 'The version of Helm being used - either v2 or v3'
+    required: false
+    default: 'v3'
 runs:
   using: 'node12'
   main: 'index.js'

@@ -1,13 +1,15 @@
-# Helm Publish
+# Helm Publish For Microservices
 
 GitHub Action to package and deploy your Helm charts to GitHub Pages
 
-Based upon [gatsby-gh-pages-action](https://github.com/enriikke/gatsby-gh-pages-action)
+Based upon [helm-gh-pages-action](https://github.com/funkypenguin/helm-gh-pages-action)
 
 ## Usage
 
-This GitHub Action will run `helm package` for every chart folder in the `charts` directory of your repository and
-deploy it to GitHub Pages for you! Here's a basic workflow example:
+This GitHub Action allows you to co-locate your Helm Chart alongside your application code. When pushing/submitting a pull request, the Helm Chart can be produced as an artifact to a Helm Chart repository hosted using GitHub Pages. 
+
+The Action will run `helm package` for every chart folder in the `charts` directory of your repository and
+deploy it to GitHub Pages. A basic example workflow is below:
 
 ```yml
 name: Helm Publish
@@ -22,12 +24,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
-      - uses: J12934/helm-gh-pages-action@master
+      - uses: dave-mcconnell/helm-gh-pages-microservices@master
         with:
-          access-token: ${{ secrets.ACCESS_TOKEN }}
+          access-token: ${{ secrets.CR_TOKEN }}
+          source-charts-folder: 'test-charts' // location of helm charts in your code repo
+          destination-repo: yourusername/helm-charts-repo
 ```
 
-### Knobs & Handles
+### Configuration Options
 
 This Action is fairly simple but it does provide you with a couple of
 configuration options:
@@ -37,13 +41,20 @@ configuration options:
   Helm finished building it. You should store this as a [secret][github-repo-secret]
   in your repository. Provided as an [input][github-action-input].
 
-- **deploy-branch**: The branch expected by GitHub to have the static files
-  needed for your site. For org and user pages it should always be `master`.
-  This is where the packaged charts and index.yaml will be pushed to. Provided as an
-  [input][github-action-input].
-  Defaults to `master`.
+- **source-charts-folder**: The folder to package helm charts from. 
+Defaults to `charts`.
 
-- **charts-folder**: Charts folder of your repository. Defaults to `charts`
+- **destination-repo**: The destination repository you want to push your Helm chart to. 
+This is a required field.
+
+- **destination-branch**: The destination branch you want to push your Helm chart to. 
+Defaults to `master`.
+
+- **destination-charts-folder**: The destination folder you want to copy the packages Helm chart to. 
+Defaults to `charts`.
+
+- **destination-charts-folder**: The version of Helm you're using - either v2 or v3. 
+Defaults to `v3`.
 
 ### Org or User Pages
 
@@ -51,29 +62,9 @@ Create a repository with the format `<YOUR/ORG USERNAME>.github.io`, push your
 helm sources to a branch other than `master` and add this GitHub Action to
 your workflow! 🚀😃
 
-### CNAME
+## Related Links
 
-You have a custom domain you would like to use? Fancy! 😎 This Action's got you
-covered! Assuming you have already set up your DNS provider as defined in the
-[GitHub Pages docs][github-pages-domain-docs], all we need next is a `CNAME`
-file at the root of your project with the domain you would like to use. For
-example:
-
-```CNAME
-imenrique.com
-```
-
-> Notice that it's **all capitals CNAME** 😊.
-
-### Assumptions
-
-TODO
-
-## That's It
-
-Have fun building! ✨
-
-[github-access-token]: https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line
-[github-action-input]: https://help.github.com/en/articles/workflow-syntax-for-github-actions#jobsjob_idstepswith
-[github-pages-domain-docs]: https://help.github.com/en/articles/using-a-custom-domain-with-github-pages
-[github-repo-secret]: https://help.github.com/en/articles/virtual-environments-for-github-actions#creating-and-using-secrets-encrypted-variables
+- [github-access-token]: https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line
+- [github-action-input]: https://help.github.com/en/articles/workflow-syntax-for-github-actions#jobsjob_idstepswith
+- [github-pages-domain-docs]: https://help.github.com/en/articles/using-a-custom-domain-with-github-pages
+- [github-repo-secret]: https://help.github.com/en/articles/virtual-environments-for-github-actions#creating-and-using-secrets-encrypted-variables
