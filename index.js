@@ -44,18 +44,18 @@ async function run() {
 
     // clone source repo
     console.log(`Deploying to repo: ${sourceRepo} and branch: ${sourceBranch}`);
-    await exec.exec(`git clone`, ['-b', sourceBranch, sourceRepoURL, 'output'], {
-      cwd: './sourceRepo',
+    await exec.exec(`git clone`, ['-b', sourceBranch, sourceRepoURL, 'sourceRepo'], {
+      cwd: './',
     });
 
     // git config
     await exec.exec(`git config user.name`, [github.context.actor], {
-      cwd: './output',
+      cwd: './',
     });
     await exec.exec(
       `git config user.email`,
       [`${github.context.actor}@users.noreply.github.com`],
-      { cwd: './output' }
+      { cwd: './' }
     );
 
     // package helm charts
