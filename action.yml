@@ -1,5 +1,5 @@
-name: 'Helm3 Publish'
-description: 'Build and deploy your Helm charts to GitHub Pages.'
+name: 'Helm Publish For Microservices'
+description: 'Package Helm charts and push them to a GitHub Pages Repo.'
 branding:
   icon: 'archive'
   color: 'blue'
@@ -7,8 +7,11 @@ inputs:
   access-token:
     description: 'A personal access token needed to push your site after it has been built.'
     required: true
-  deploy-branch:
-    description: 'The branch expected by GitHub to have the static files needed for your site.'
+  destination-repo:
+    description: 'The destination repository you want to push your Helm chart to.'
+    required: true
+  destination-branch:
+    description: 'The destination branch you want to push your Helm chart to.'
     required: false
     default: 'master'
   charts-folder:

@@ -1,0 +1,17 @@
+on: [push]
+
+jobs:
+  hello_world_job:
+    runs-on: ubuntu-latest
+    name: A job to say hello
+    steps:
+      # To use this repository's private action, you must check out the repository
+      # - name: Checkout
+      #   uses: actions/checkout@v2
+      - name: Test this action
+        uses: ./ # Uses an action in the root directory
+        with:
+          access-token: ${{ secrets.CR_TOKEN }}
+          source-charts-folder: 'test-charts'
+          destination-repo: ${{ secrets.CR_TOKEN }}
+          destination-charts-folder: 'charts'

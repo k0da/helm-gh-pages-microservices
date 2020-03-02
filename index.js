@@ -17,7 +17,13 @@ const getDirectories = fileName =>
 
 async function run() {
   try {
+    const sourceBranch = github.context.ref
     const accessToken = core.getInput('access-token');
+    const sourceChartsDir = core.getInput('source-charts-folder')  | 'charts';
+    const destinationRepo = core.getInput('destination-repo');
+    const destinationBranch = core.getInput('destination-branch') | 'master'
+    const destinationChartsDir = core.getInput('destination-charts-folder') | 'charts';
+
     if (!accessToken) {
       core.setFailed(
         'No personal access token found. Please provide one by setting the `access-token` input for this action.'
@@ -25,27 +31,24 @@ async function run() {
       return;
     }
 
-    const deployBranch = core.getInput('deploy-branch');
-    if (!deployBranch) deployBranch = 'master';
-
-    const chartsDir = core.getInput('charts-folder');
-
-    if (github.context.ref === `refs/heads/${deployBranch}`) {
-      console.log(`Triggered by branch used to deploy: ${github.context.ref}.`);
-      console.log('Nothing to deploy.');
+    if (!destinationRepo) {
+      core.setFailed(
+        'No destination repository found. Please provide one by setting the `destination-repos` input for this action.'
+      );
       return;
     }
 
-    const repo = `${github.context.repo.owner}/${github.context.repo.repo}`;
-    const repoURL = `https://${accessToken}@github.com/${repo}.git`;
-    console.log('Ready to deploy your new shiny site!');
-    console.log(`Deploying to repo: ${repo} and branch: ${deployBranch}`);
-    console.log(
-      'You can configure the deploy branch by setting the `deploy-branch` input for this action.'
-    );
-    await exec.exec(`git clone`, ['-b', deployBranch, repoURL, 'output'], {
-      cwd: './',
+    const sourceRepo = `${github.context.repo.owner}/${github.context.repo.repo}`;
+    const sourceRepoURL = `https://${accessToken}@github.com/${sourceRepo}.git`;
+    const destinationRepoURL = `https://${accessToken}@github.com/${destinationRepo}.git`;
+
+    // clone source repo
+    console.log(`Deploying to repo: ${sourceRepo} and branch: ${sourceBranch}`);
+    await exec.exec(`git clone`, ['-b', sourceBranch, sourceRepoURL, 'output'], {
+      cwd: './sourceRepo',
     });
+
+    // git config
     await exec.exec(`git config user.name`, [github.context.actor], {
       cwd: './output',
     });
@@ -55,32 +58,28 @@ async function run() {
       { cwd: './output' }
     );
 
-    const chartDirectories = getDirectories(path.resolve(`./${chartsDir}`));
+    // package helm charts
+    const chartDirectories = getDirectories(path.resolve(`./sourceRepo/${sourceChartsDir}`));
 
     console.log('Charts dir content');
-    await exec.exec(`ls`, ['-I ".*"'], { cwd: `./${chartsDir}` });
+    await exec.exec(`ls`, ['-I ".*"'], { cwd: `./sourceRepo/${sourceChartsDir}` });
     for (const chartDirname of chartDirectories) {
       console.log(`Resolving helm chart dependency in directory ${chartDirname}`);
       await exec.exec(
         `helm dependency update`,
         [],
-        { cwd: `./${chartsDir}/${chartDirname}` }
+        { cwd: `./sourceRepo/${sourceChartsDir}/${chartDirname}` }
       );
       
       console.log(`Packaging helm chart in directory ${chartDirname}`);
       await exec.exec(
         `helm package`,
         [chartDirname, '--destination', '../output'],
-        { cwd: `./${chartsDir}` }
+        { cwd: `./sourceRepo/${sourceChartsDir}` }
       );
     }
 
     console.log('Packaged all helm charts.');
-    console.log(`Building index.yaml`);
-
-    await exec.exec(`helm repo index`, `./output`);
-
-    console.log(`Successfully build index.yaml.`);
 
     const cnameExists = await ioUtil.exists('./CNAME');
     if (cnameExists) {
@@ -89,18 +88,34 @@ async function run() {
       console.log('Finished copying CNAME.');
     }
 
-    await exec.exec(`git add`, ['.'], { cwd: './output' });
+    // clone destination repo
+    await exec.exec(`git clone`, ['-b', destinationBranch, destinationRepoURL, 'destinationRepo'], {
+      cwd: './',
+    });
+
+    // move published chart
+    await exec.exec(`mv`, ['./sourceRepo/*.tgz', `./DestinationRepo/${destinationChartsDir}`], {
+      cwd: './',
+    });
+
+    // push to 
+    await exec.exec(`git add`, ['.'], { cwd: './DestinationRepo' });
     await exec.exec(
       `git commit`,
-      ['-m', `deployed via ⎈ Helm Publish Action for ${github.context.sha}`],
+      ['-m', `Deployed via Helm Publish Action for ${github.context.sha}`],
       { cwd: './output' }
     );
-    await exec.exec(`git push`, ['-u', 'origin', `${deployBranch}`], {
+    await exec.exec(`git push`, ['-u', 'origin', `${destinationBranch}`], {
       cwd: './output',
     });
     console.log('Finished deploying your site.');
 
     console.log('Enjoy! ✨');
+    // generate index
+    console.log(`Building index.yaml`);
+    await exec.exec(`helm repo index`, `./output`);
+
+    console.log(`Successfully build index.yaml.`);
   } catch (error) {
     core.setFailed(error.message);
   }
