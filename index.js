@@ -13,8 +13,8 @@ async function run() {
     const accessToken = core.getInput('access-token');
 
     const sourceRepo = `${github.context.repo.owner}/${github.context.repo.repo}`;
-    const sourceBranch = github.context.ref.replace('refs/heads/', '')
-    const sourceBranch = github.context.ref.replace('refs/tags/', '')
+    let sourceBranch = github.context.ref.replace('refs/heads/', '')
+    sourceBranch = github.context.ref.replace('refs/tags/', '')
     const sourceChartsDir = core.getInput('source-charts-folder') ? core.getInput('source-charts-folder') : 'charts';
 
     const destinationRepo = core.getInput('destination-repo');
