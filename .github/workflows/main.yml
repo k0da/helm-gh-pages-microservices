@@ -5,10 +5,6 @@ jobs:
     runs-on: ubuntu-latest
     name: Test job
     steps:
-<<<<<<< HEAD
-      # To use this repository's private action, you must check out the repository
-=======
->>>>>>> origin/feature/bootstrap
       - name: Checkout
         uses: actions/checkout@v2
       - name: Test this action
