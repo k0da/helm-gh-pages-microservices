@@ -7,22 +7,31 @@ const ioUtil = require('@actions/io/lib/io-util');
 const { readdirSync } = require('fs');
 const path = require('path');
 
-const getDirectories = fileName =>
-  readdirSync(fileName, {
-    withFileTypes: true,
-  })
-    .filter(dirent => dirent.isDirectory())
-    .filter(dirent => !(/(^|\/)\.[^\/\.]/g).test(dirent))
-    .map(dirent => dirent.name);
-
 async function run() {
+
   try {
-    const sourceBranch = github.context.ref
     const accessToken = core.getInput('access-token');
-    const sourceChartsDir = core.getInput('source-charts-folder')  | 'charts';
+
+    const sourceRepo = `${github.context.repo.owner}/${github.context.repo.repo}`;
+    const sourceBranch = github.context.ref.replace('refs/heads/', '')
+    const sourceChartsDir = core.getInput('source-charts-folder') ? core.getInput('source-charts-folder') : 'charts';
+
     const destinationRepo = core.getInput('destination-repo');
-    const destinationBranch = core.getInput('destination-branch') | 'master'
-    const destinationChartsDir = core.getInput('destination-charts-folder') | 'charts';
+    const destinationBranch = core.getInput('destination-branch') ? core.getInput('destination-branch') : 'master'
+    const destinationChartsDir = core.getInput('destination-charts-folder') ?core.getInput('destination-charts-folder') : 'charts';
+
+    let useHelm3 = true;
+    if (!core.getInput('helm-version')) {
+      useHelm3 = true
+    }
+    else useHelm3 = core.getInput('helm-version') === 'v3' ? true : false;
+
+    console.log('Running Push Helm Chart job with:')
+    console.log('Source Branch:' + sourceBranch)
+    console.log('Source Charts Directory:' + sourceChartsDir)
+    console.log('Destination Repo:' + destinationRepo)
+    console.log('Destination Branch:' + destinationBranch)
+    console.log('Destination Charts Directory:' + destinationChartsDir)
 
     if (!accessToken) {
       core.setFailed(
@@ -38,87 +47,108 @@ async function run() {
       return;
     }
 
-    const sourceRepo = `${github.context.repo.owner}/${github.context.repo.repo}`;
-    const sourceRepoURL = `https://${accessToken}@github.com/${sourceRepo}.git`;
-    const destinationRepoURL = `https://${accessToken}@github.com/${destinationRepo}.git`;
-
-    // clone source repo
-    console.log(`Deploying to repo: ${sourceRepo} and branch: ${sourceBranch}`);
-    await exec.exec(`git clone`, ['-b', sourceBranch, sourceRepoURL, 'sourceRepo'], {
-      cwd: './',
-    });
-
-    // git config
-    await exec.exec(`git config user.name`, [github.context.actor], {
-      cwd: './',
-    });
-    await exec.exec(
-      `git config user.email`,
-      [`${github.context.actor}@users.noreply.github.com`],
-      { cwd: './' }
-    );
-
-    // package helm charts
-    const chartDirectories = getDirectories(path.resolve(`./sourceRepo/${sourceChartsDir}`));
-
-    console.log('Charts dir content');
-    await exec.exec(`ls`, ['-I ".*"'], { cwd: `./sourceRepo/${sourceChartsDir}` });
-    for (const chartDirname of chartDirectories) {
-      console.log(`Resolving helm chart dependency in directory ${chartDirname}`);
-      await exec.exec(
-        `helm dependency update`,
-        [],
-        { cwd: `./sourceRepo/${sourceChartsDir}/${chartDirname}` }
-      );
-      
-      console.log(`Packaging helm chart in directory ${chartDirname}`);
-      await exec.exec(
-        `helm package`,
-        [chartDirname, '--destination', '../output'],
-        { cwd: `./sourceRepo/${sourceChartsDir}` }
-      );
+    if (useHelm3) {
+      await InstallHelm3Latest();
     }
 
-    console.log('Packaged all helm charts.');
+    await ConfigureGit()
+    await CloneGitRepo(sourceRepo, sourceBranch, accessToken, 'sourceRepo')
+    await CloneGitRepo(destinationRepo, destinationBranch, accessToken, 'destinationRepo')
 
-    const cnameExists = await ioUtil.exists('./CNAME');
-    if (cnameExists) {
-      console.log('Copying CNAME over.');
-      await io.cp('./CNAME', './output/CNAME', { force: true });
-      console.log('Finished copying CNAME.');
-    }
+    await PackageHelmCharts(`./sourceRepo/${sourceChartsDir}`, `../../destinationRepo/${destinationChartsDir}`)
+    await GenerateIndex()
+    await AddCommitPushToGitRepo(`./destinationRepo`, `${github.context.sha}`, destinationBranch)
 
-    // clone destination repo
-    await exec.exec(`git clone`, ['-b', destinationBranch, destinationRepoURL, 'destinationRepo'], {
-      cwd: './',
-    });
-
-    // move published chart
-    await exec.exec(`mv`, ['./sourceRepo/*.tgz', `./DestinationRepo/${destinationChartsDir}`], {
-      cwd: './',
-    });
-
-    // push to 
-    await exec.exec(`git add`, ['.'], { cwd: './DestinationRepo' });
-    await exec.exec(
-      `git commit`,
-      ['-m', `Deployed via Helm Publish Action for ${github.context.sha}`],
-      { cwd: './output' }
-    );
-    await exec.exec(`git push`, ['-u', 'origin', `${destinationBranch}`], {
-      cwd: './output',
-    });
-    console.log('Finished deploying your site.');
-
-    console.log('Enjoy! ✨');
-    // generate index
-    console.log(`Building index.yaml`);
-    await exec.exec(`helm repo index`, `./output`);
-
-    console.log(`Successfully build index.yaml.`);
   } catch (error) {
     core.setFailed(error.message);
   }
+}
+
+const getDirectories = fileName =>
+  readdirSync(fileName, {
+    withFileTypes: true,
+  })
+    .filter(dirent => dirent.isDirectory())
+    .filter(dirent => !(/(^|\/)\.[^\/\.]/g).test(dirent))
+    .map(dirent => dirent.name);
+    
+const InstallHelm3Latest = async () =>  {
+  await exec.exec(`curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3`, [], { cwd: `./` });
+  await exec.exec(`chmod 700 get_helm.sh`, [], { cwd: `./` });
+  await exec.exec(`./get_helm.sh`, [], { cwd: `./` });
+
+  await exec.exec(`helm version`, [], { cwd: `./` }
+  )
+}
+
+const ConfigureGit = async () => {
+  
+  await exec.exec(`git config --global user.name`, [github.context.actor], {
+    cwd: './',
+  });
+  
+  await exec.exec(
+    `git config --global user.email`,
+    [`${github.context.actor}@users.noreply.github.com`],
+    { cwd: './' }
+  );
+}
+
+const CloneGitRepo = async (repoName, branchName, accessToken, cloneDirectory) => {
+
+  const repoURL = `https://${accessToken}@github.com/${repoName}.git`;
+  await exec.exec(`git clone`, ['-b', branchName, repoURL, cloneDirectory], {
+    cwd: './',
+  });
+
+}
+
+const PackageHelmCharts = async (chartsDir, destinationChartsDir) => {
+
+  const chartDirectories = getDirectories(path.resolve(chartsDir));
+
+  console.log('Charts dir content');
+  await exec.exec(`ls`, ['-I ".*"'], { cwd: chartsDir });
+  for (const chartDirname of chartDirectories) {
+
+    console.log(`Resolving helm chart dependency in directory ${chartDirname}`);
+    await exec.exec(
+      `helm dependency update`,
+      [],
+      { cwd: `${chartsDir}/${chartDirname}` }
+    );
+    
+    console.log(`Packaging helm chart in directory ${chartDirname}`);
+    await exec.exec(
+      `helm package`,
+      [chartDirname, '--destination', destinationChartsDir],
+      { cwd: chartsDir }
+    );
+  }
+  console.log('Packaged all helm charts.');
+}
+
+const GenerateIndex = async () => {
+
+  // generate index
+  console.log(`Building index.yaml`);
+  await exec.exec(`helm repo index`, `./destinationRepo`);
+  console.log(`Successfully generated index.yaml.`);
+}
+
+const AddCommitPushToGitRepo = async (workingDir, gitSha, branch) =>  {
+  await exec.exec(`git status`, [], { cwd: workingDir });
+  await exec.exec(`git add`, ['.'], { cwd: workingDir });
+  await exec.exec(`git status`, [], { cwd: workingDir });
+  await exec.exec(
+      `git commit`,
+      ['-m', `Deployed via Helm Publish Action for ${gitSha}`],
+      { cwd: workingDir }
+    );
+    await exec.exec(`git push`, ['-u', 'origin', `${branch}`], 
+      { cwd: workingDir }
+    );
+    console.log(`Pushed to ${workingDir}`);
 }
 
 run();

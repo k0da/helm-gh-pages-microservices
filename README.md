@@ -61,10 +61,3 @@ Defaults to `v3`.
 Create a repository with the format `<YOUR/ORG USERNAME>.github.io`, push your
 helm sources to a branch other than `master` and add this GitHub Action to
 your workflow! 🚀😃
-
-## Related Links
-
-[github-access-token]: https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line
-[github-action-input]: https://help.github.com/en/articles/workflow-syntax-for-github-actions#jobsjob_idstepswith
-[github-pages-domain-docs]: https://help.github.com/en/articles/using-a-custom-domain-with-github-pages
-[github-repo-secret]: https://help.github.com/en/articles/virtual-environments-for-github-actions#creating-and-using-secrets-encrypted-variables

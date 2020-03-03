@@ -22,6 +22,10 @@ inputs:
     description: 'The folder to copy packaged helm charts into'
     required: false
     default: 'charts'
+  helm-version:
+    description: 'The version of Helm being used - either v2 or v3'
+    required: false
+    default: 'v3'
 runs:
   using: 'node12'
   main: 'index.js'
