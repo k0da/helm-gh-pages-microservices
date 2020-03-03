@@ -1,4 +1,4 @@
-# Helm Publish
+# Helm Publish For Microservices
 
 GitHub Action to package and deploy your Helm charts to GitHub Pages
 
