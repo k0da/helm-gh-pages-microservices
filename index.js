@@ -12,9 +12,6 @@ async function run() {
   try {
     const accessToken = core.getInput('access-token');
 
-    const sourceRepo = `${github.context.repo.owner}/${github.context.repo.repo}`;
-    let sourceBranch = github.context.ref.replace('refs/heads/', '')
-    sourceBranch = sourceBranch.replace('refs/tags/', '')
     const sourceChartsDir = core.getInput('source-charts-folder') ? core.getInput('source-charts-folder') : 'charts';
 
     const destinationRepo = core.getInput('destination-repo');
@@ -28,7 +25,6 @@ async function run() {
     else useHelm3 = core.getInput('helm-version') === 'v3' ? true : false;
 
     console.log('Running Push Helm Chart job with:')
-    console.log('Source Branch:' + sourceBranch)
     console.log('Source Charts Directory:' + sourceChartsDir)
     console.log('Destination Repo:' + destinationRepo)
     console.log('Destination Branch:' + destinationBranch)
@@ -53,10 +49,9 @@ async function run() {
     }
 
     await ConfigureGit()
-    await CloneGitRepo(sourceRepo, sourceBranch, accessToken, 'sourceRepo')
     await CloneGitRepo(destinationRepo, destinationBranch, accessToken, 'destinationRepo')
 
-    await PackageHelmCharts(`./sourceRepo/${sourceChartsDir}`, `../../destinationRepo/${destinationChartsDir}`)
+    await PackageHelmCharts(`./${sourceChartsDir}`, `../destinationRepo/${destinationChartsDir}`)
     await GenerateIndex()
     await AddCommitPushToGitRepo(`./destinationRepo`, `${github.context.sha}`, destinationBranch)
 
