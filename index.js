@@ -35,6 +35,7 @@ async function run() {
     console.log('Destination Repo:' + destinationRepo)
     console.log('Destination Branch:' + destinationBranch)
     console.log('Destination Charts Directory:' + destinationChartsDir)
+    console.log('Package args:' + helmPackageArgs)
 
     if (!accessToken) {
       core.setFailed(
@@ -111,10 +112,14 @@ const PackageHelmCharts = async (chartsDir, destinationChartsDir, helmArgs) => {
 
   const chartDirectories = getDirectories(path.resolve(chartsDir));
 
+ 
+  const args = helmArgs.split(" ")
   console.log('Charts dir content');
   await exec.exec(`ls`, ['-I ".*"'], { cwd: chartsDir });
   for (const chartDirname of chartDirectories) {
 
+    var chartArgs = [chartDirname, '--destination', destinationChartsDir]
+    var packageArgs = chartArgs.concat(args)
     console.log(`Resolving helm chart dependency in directory ${chartDirname}`);
     await exec.exec(
       `helm dependency update`,
@@ -125,7 +130,8 @@ const PackageHelmCharts = async (chartsDir, destinationChartsDir, helmArgs) => {
     console.log(`Packaging helm chart in directory ${chartDirname}`);
     await exec.exec(
       `helm package`,
-      [chartDirname, '--destination', destinationChartsDir, helmArgs],
+      packageArgs,
+//      [chartDirname, '--destination', destinationChartsDir],
       { cwd: chartsDir }
     );
   }
