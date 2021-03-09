@@ -26,8 +26,12 @@ inputs:
     description: 'The version of Helm being used - either v2 or v3'
     required: false
     default: 'v3'
-  helm-package-args:
-    description: 'Additional args to helm package command'
+  helm-chart-version:
+    description: '--version arg to helm package command'
+    required: false
+    default: ''
+  helm-app-version:
+    description: '--app-version arg to helm package command'
     required: false
     default: ''
 runs:
