@@ -12,5 +12,6 @@ jobs:
         with:
           access-token: ${{ secrets.CR_TOKEN }}
           source-charts-folder: 'test-charts'
-          destination-repo: dave-mcconnell/helm-charts
+          destination-repo: absaoss/helm-gh-pages-microservices
           destination-charts-folder: 'charts'
+          destination-branch: gh-pages
